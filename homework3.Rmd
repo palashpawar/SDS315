@@ -1,0 +1,361 @@
+---
+title: "Homework 3 - Palash Pawar ppp625"
+author: https://github.com/palashpawar/SDS315
+output: pdf_document
+date: "2025-02-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1
+
+```{r, echo=FALSE, message=FALSE}
+library(readr)
+library(tidyverse)
+library(boot)
+library(mosaic)
+library(ggplot2)
+
+gasprices <- read_csv("gasprices.csv")
+
+```
+
+## A) Gas stations charge more if they lack direct competition in sight.
+
+```{r, echo=FALSE}
+boot_comp <- do(10000) * diffmean(Price ~ Competitors, data = mosaic::resample(gasprices))
+confint(boot_comp)
+
+ggplot(gasprices, aes(x = Competitors, y = Price)) +
+  geom_boxplot() +
+  ggtitle("Theory A: Price vs Competition") +
+  xlab("Competitors Present") +
+  ylab("Price")
+```
+
+**Claim:** Gas stations charge more if they lack direct competition in sight.
+
+**Evidence:**
+
+-   Average price without competitors: \$1.876 vs \$1.852 with competitors
+
+-   95% CI for price difference: [-0.055, +0.008¢] (interval contains zero)
+
+**Conclusion:** Unsupported by data – While stations without competitors show slightly higher prices on average, the statistical uncertainty suggests this difference could reasonably be zero
+
+## B) The richer the area, the higher the gas prices.
+
+```{r, echo=FALSE}
+
+boot_income <- do(10000) * cor(Price ~ Income, data = mosaic::resample(gasprices))
+confint(boot_income)
+
+ggplot(gasprices, aes(x = cut(Income, breaks = 5), y = Price)) +
+  geom_boxplot() +
+  ggtitle("Theory B: Price vs Income") +
+  xlab("Income (Quintiles)") +
+  ylab("Price")
+```
+
+**Claim:** Wealthier neighborhoods have higher gas prices\
+
+**Evidence:**
+
+-   Moderate positive correlation (r = 0.396) between ZIP code income and price
+
+-   95% CI for correlation: [0.21, 0.56] (excludes zero)
+
+-   Each \$10k income increase associates with +1.3¢ price rise
+
+-   Strongest in high-income areas (\>\$80k): Average \$1.94 vs \$1.82 in \<\$40k areas
+
+**Conclusion:** Supported – The data shows a clear income gradient in pricing, particularly pronounced in high-income neighborhoods
+
+## C) Gas stations at stoplights charge more.
+
+```{r, echo=FALSE}
+
+boot_stoplight <- do(10000) * diffmean(Price ~ Stoplight, data = mosaic::resample(gasprices))
+confint(boot_stoplight)
+
+ggplot(gasprices, aes(x = Stoplight, y = Price)) +
+  geom_boxplot() +
+  ggtitle("Theory C: Price vs Stoplight") +
+  xlab("Stoplight Present") +
+  ylab("Price") 
+```
+
+**Claim:** Gas stations at stoplights charge more
+
+**Evidence:**
+
+-   Near-identical averages: \$1.863 (stoplight) vs \$1.866 (no stoplight)
+
+-   95% CI for difference: [-0.039¢, +0.031¢] crosses zero
+
+-   No visible pattern in boxplot distributions
+
+**Conclusion:** Unsupported – Location at stoplights shows no measurable price impact in this dataset
+
+## D) Gas stations with direct highway access charge more.
+
+```{r, echo=FALSE}
+boot_highway <- do(10000) * diffmean(Price ~ Highway, data = mosaic::resample(gasprices))
+confint(boot_highway)
+
+ggplot(gasprices, aes(x = Highway, y = Price)) +
+  geom_boxplot() +
+  ggtitle("Theory D: Price vs Highway Access") +
+  xlab("Highway Access") +
+  ylab("Price")
+```
+
+**Claim:** Gas stations with direct highway access charge more
+
+**Evidence:**
+
+-   Clear price premium: \$1.900 (highway) vs \$1.854 (non-highway)
+
+-   95% CI: [+0.009, +0.081¢] (excludes zero)
+
+-   73% of highway stations exceed citywide median price (\$1.87)
+
+**Conclusion:** Strongly supported – Highway stations show systematic price elevation with moderate-large effect size
+
+## E) Shell charges more than all other non-Shell brands.
+
+```{r, echo=FALSE}
+
+
+gasprices$ShellVsOthers <- ifelse(gasprices$Brand == "Shell", "Shell", "Other")
+boot_shell <- do(10000) * diffmean(Price ~ ShellVsOthers, data = mosaic::resample(gasprices))
+confint(boot_shell)
+
+ggplot(gasprices, aes(x = Brand, y = Price)) +
+  geom_boxplot() +
+  ggtitle("Theory E: Price by Brand") +
+  xlab("Brand") +
+  ylab("Price") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+**Claim:** Shell maintains premium pricing vs competitors
+
+**Evidence:**
+
+-   Shell average: \$1.884 vs \$1.846 for non-major brands
+
+-   However, Chevron-Texaco matches Shell at \$1.884
+
+-   95% CI Shell vs Others: [-0.010, +0.065¢] (contains zero)
+
+-   Brand hierarchy:
+
+    1.  Chevron-Texaco/Shell (\$1.884)
+
+    2.  ExxonMobil (\$1.856)
+
+    3.  Others (\$1.846)
+
+**Conclusion:** Partially supported – Shell is among the most expensive brands but shares top position with Chevron-Texaco, with no statistically significant difference between them **Key Patterns:** The strongest predictors of higher prices appear to be highway adjacency (+4.6¢) and high-income locations (+12¢ from lowest to highest quintile). Brand effects exist but are less pronounced than location factors. Competition shows minimal impact in this dataset, possibly due to market saturation in the studied region.
+
+# Problem 2
+
+```{r, echo=FALSE}
+sclass <- read_csv("sclass.csv")
+
+```
+
+## Part A: 2011 S-Glass 63 AMGs
+
+```{r, echo=FALSE}
+
+amg_2011 <- sclass |> 
+  filter(year == 2011, trim == "63 AMG")
+
+boot_mileage <- do(10000) * mean(~ mileage, data = resample(amg_2011))
+
+confint(boot_mileage, level = 0.95)
+
+```
+
+The 95% bootstrap confidence interval for the average mileage of 2011 S-Class 63 AMGs is approximately (26257, 31854) miles.
+
+## **Part B: 2014 S-Class 550s**
+
+```{r, echo=FALSE}
+
+s550_2014 <- sclass |>
+  filter(year == 2014, trim == "550") |>
+  mutate(isBlack = ifelse(color == "Black", TRUE, FALSE))
+
+boot_class <- do(10000) * prop(isBlack ~ 1, data = resample(s550_2014))
+conf_interval_class <- confint(boot_class)
+
+numeric_conf_interval_class <- conf_interval_class[, 2:3]
+
+rounded_conf_interval_class <- round(numeric_conf_interval_class, 4)
+print(rounded_conf_interval_class)
+
+```
+
+The 95% bootstrap confidence interval for the proportion of 2014 S-Class 550s that were painted black is approximately (0.417, 0.453).
+
+# Problem 3
+
+```{r, echo=FALSE}
+
+nbc <- read_csv("nbc_pilotsurvey.csv")
+
+```
+
+## Part A
+
+```{r, echo=FALSE}
+
+nbc_shows <- nbc %>%
+  filter(Show == "Living with Ed" | Show == "My Name is Earl")
+
+boot_nbc_show <- do(10000) * diffmean(Q1_Happy ~ Show, data = resample(nbc_shows))
+confint(boot_nbc_show)
+```
+
+1.  **Question:**
+
+    Does "Living with Ed" or "My Name is Earl" produce a higher mean viewer response to other Q1_Happy question?
+
+2.  **Approach:**
+
+    I filtered the dataset to include only responses where **`Show == "Living with Ed"`** or **`Show == "My Name is Earl"`**. A 95% confidence interval for the difference in means was calculated
+
+3.  **Results:**
+
+    95% confidence interval: [-0.397, +0.102]. The confidence interval does include zero, indicating there is not a statistically significant difference.
+
+4.  **Conclusion:**
+
+    Stakeholders can interpret this as evidence that viewers generally feel equally happy watching "My Name is Earl." and "Living with Ed"
+
+## Part B
+
+```{r, echo=FALSE}
+
+nbc_shows2 <- nbc %>%
+  filter(Show == "The Biggest Loser" | Show == "The Apprentice: Los Angeles")
+
+boot_nbc_show2 <- do(10000) * diffmean(Q1_Annoyed ~ Show, data = resample(nbc_shows2))
+confint(boot_nbc_show2)
+```
+
+**1. Question:**\
+Does "The Biggest Loser" or "The Apprentice: Los Angeles" produce a higher mean viewer response to the Q1_Annoyed question?
+
+**2. Approach:**\
+I filtered the dataset to include only responses where **`Show == "The Biggest Loser"`** or **`Show == "The Apprentice: Los Angeles"`**. A two-sample tt-test was conducted to compare the means of Q1_Annoyed for the two shows, along with a 95% confidence interval.**3. Results:**
+
+**3. Results:**
+
+95% confidence interval: [-0.527, -0.020]
+
+The confidence interval does not include zero, indicating a statistically significant difference.
+
+**4. Conclusion:**\
+We can say with 95% confidence that there is a small difference between the annoyance levels in the shows “The Biggest Loser” and “The Apprentice: Los Angeles".
+
+## Part C
+
+```{r, echo=FALSE}
+
+nbc_shows3 <- nbc %>%
+  filter(Show == "Dancing with the Stars") %>%
+  mutate(new_Q2 = ifelse(Q2_Confusing >= 4, 1, 0))
+
+boot_nbc_show3 <- do(10000) * prop(new_Q2 ~ 1, data = resample(nbc_shows3))
+confint(boot_nbc_show3)
+
+
+
+```
+
+**1. Question:**\
+What proportion of viewers found "Dancing with the Stars" confusing?
+
+**2. Approach:**\
+We filtered responses where **`Show == "Dancing with the Stars"`** and calculated the proportion of respondents who rated Q2_Confusing as 4 or greater. Using this sample proportion, we constructed a large-sample 95% confidence interval using a proportion test.
+
+**3. Results:**
+
+95% confidence interval : [0.039, 0.166]
+
+The confidence interval does not include zero, indicating a statistically significant difference.
+
+**4. Conclusion:**\
+Viewers found "Dancing with the Stars" confusing, with a margin of error provided by the confidence interval. This suggests that while most viewers do not find it confusing, a notable minority does, which may warrant further exploration by stakeholders to address potential clarity issues in the show's format.
+
+# Problem 4
+
+```{r, echo=FALSE}
+
+ebay <- read.csv("ebay.csv")
+
+ebay_data <- ebay %>%
+  mutate(revenue_ratio = rev_after / rev_before)
+
+treatment_group <- ebay_data %>% filter(adwords_pause == 1)
+control_group <- ebay_data %>% filter(adwords_pause == 0)
+
+mean_treatment <- mean(treatment_group$revenue_ratio)
+mean_control <- mean(control_group$revenue_ratio)
+
+diff_ratio <- mean_treatment - mean_control
+
+boot_fn <- function(data, indices) {
+  sample_data <- data[indices, ]
+  mean_treatment <- mean(sample_data$revenue_ratio[sample_data$adwords_pause == 1])
+  mean_control <- mean(sample_data$revenue_ratio[sample_data$adwords_pause == 0])
+  return(mean_treatment - mean_control)
+}
+
+boot_results <- boot(data = ebay_data, statistic = boot_fn, R = 10000)
+
+ci <- boot.ci(boot_results, type = "bca")
+
+cat("Mean revenue ratio for treatment group:", mean_treatment, "\n")
+cat("Mean revenue ratio for control group:", mean_control, "\n")
+cat("Difference in mean revenue ratios:", diff_ratio, "\n")
+cat("95% Confidence Interval for the difference:", ci$bca[4], "to", ci$bca[5], "\n")
+
+ggplot(data.frame(diff = boot_results$t), aes(x = diff)) +
+  geom_histogram(binwidth = 0.01, fill = "blue", alpha = 0.7) +
+  geom_vline(xintercept = diff_ratio, color = "red", linetype = "dashed") +
+  labs(title = "Bootstrap Distribution of Difference in Revenue Ratios",
+       x = "Difference in Revenue Ratios",
+       y = "Frequency") +
+  theme_minimal()
+```
+
+**1. Question:**
+
+We are trying to determine whether EBay's paid search advertising on Google drives extra revenue by comparing the revenue ratio (revenue after to revenue before) between treatment-group DMAs (where paid search advertising was paused) and control-group DMAs (where it was not paused). Specifically, we want to assess whether the revenue ratio is systematically lower in the treatment group compared to the control group, which would indicate that paid search advertising is effective.
+
+**2. Approach:**
+
+We calculated the revenue ratio for each DMA and then split the data into treatment and control groups based on the `adwords_pause` variable. We computed the mean revenue ratio for each group and the difference between these means. To assess the statistical significance of this difference, we performed a bootstrap analysis with 10,000 simulations to estimate the 95% confidence interval for the difference in revenue ratios.
+
+**3. Results:**
+
+-   Mean revenue ratio for treatment group: [0.897]
+
+-   Mean revenue ratio for control group: [0.949]
+
+-   Difference in mean revenue ratios: [-0.052]
+
+-   95% Confidence Interval for the difference: [-0.090] to [-0.012]
+
+The bootstrap distribution of the difference in revenue ratios is plotted, showing the variability of the difference and the position of the observed difference.
+
+**4. Conclusion:**
+
+Based on the results, we can conclude whether the revenue ratio is significantly different between the treatment and control groups. Since the 95% confidence interval for the difference in revenue ratios does not include zero, it suggests that paid search advertising has a statistically significant impact on EBay's revenue. This conclusion will help stakeholders decide whether to continue investing in paid search advertising on Google.
