@@ -1,0 +1,223 @@
+---
+title: "SDS315 HW7 - Palash Pawar ppp625"
+author: https://github.com/palashpawar/SDS315
+output: pdf_document
+date: "2025-04-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1 : Armfolding
+
+```{r, include=FALSE, echo=FALSE, message=FALSE}
+library(readr)
+
+armfold <- read_csv("armfold.csv")
+armfold$Sex <- tolower(armfold$Sex)
+
+table(armfold$Sex)
+
+p_male <- mean(armfold$LonR_fold[armfold$Sex == "male"])
+p_female <- mean(armfold$LonR_fold[armfold$Sex == "female"])
+
+obs_diff <- p_male - p_female
+
+n_male <- sum(armfold$Sex == "male")
+n_female <- sum(armfold$Sex == "female")
+
+SE <- sqrt((p_male * (1 - p_male)) / n_male + (p_female * (1 - p_female)) / n_female)
+
+z_star <- qnorm(0.975)
+
+lower <- obs_diff - z_star * SE
+upper <- obs_diff + z_star * SE
+
+list(
+  male_count = n_male,
+  female_count = n_female,
+  prop_male = p_male,
+  prop_female = p_female,
+  diff = obs_diff,
+  SE = SE,
+  CI = c(lower, upper)
+)
+
+```
+
+### **A. Descriptive Statistics**
+
+Number of male students: 106
+
+Number of female students: 111
+
+Proportion of males with left arm on top: = 0.472
+
+Proportion of females with left arm on top: = 0.423
+
+### **B. Observed Difference in Proportions**
+
+pmale - pfemale = 0.472 – 0.423 = 0.048
+
+### **C. 95% Confidence Interval**
+
+$$
+SE = \sqrt{ \frac{p_1 (1 - p_1)}{n_1} + \frac{p_2 (1 - p_2)}{n_2} }
+$$
+
+p1 = 0.472, n1 = 106
+
+p2 = 0.424, n2 = 111
+
+Using the Standard Error formula and plugging in the values we get a SE of 0.0675.
+
+*z Value* =1.96 for a 95% confidence level (from standard normal distribution)
+
+Confidence Interval: 0.048 ± 1.96 × 0.0675 = (-0.084, 0.180)
+
+### **D. Interpretation of Confidence Interval**
+
+If we were to repeat this sampling process many times, then we would expect that about 95% of the resulting confidence intervals would contain the true difference in population proportions (male - female).
+
+### **E. What Does the Standard Error Represent?**
+
+The standard error measures how much we would expect the difference in sample proportions to vary from sample to sample just due to random sampling variability. It reflects the uncertainty in estimating the difference between male and female folding behavior.
+
+### **F. What Is the Sampling Distribution?**
+
+In this context, the sampling distribution refers to the distribution of the difference in sample proportions (male - female) that we would obtain if we repeated this experiment many times with different random samples. The values of the difference in proportions would vary, but the true population difference remains fixed.
+
+### **G. Why Can We Use the Normal Distribution?**
+
+The Central Limit Theorem (CLT) justifies using the normal distribution to approximate the sampling distribution of the difference in proportions. It tells us that as sample sizes increase, the distribution of the sample statistic (here, the difference in proportions) becomes approximately normal, even if the population is not, provided that sample sizes are large enough and each group has at least 10 "successes" and 10 "failures."
+
+### **H. Interpretation of Confidence Interval [-0.01, 0.30]**
+
+If someone claims “there’s no sex difference in arm folding”, I can say: Since the interval [-0.01, 0.30] includes 0, it’s possible that there is no real difference in the population. However, the interval also includes many positive values, so we cannot rule out a true difference, especially one where males are more likely to fold with the left arm on top.
+
+### **I. If We Repeated the Experiment Many Times…**
+
+Yes, the confidence interval would differ with each sample due to sampling variability. However, if we generated many such intervals using the same method, about 95% of them would contain the true population difference in proportions. That’s the definition of a 95% confidence level.
+
+# Problem 2 : Get Out the Vote
+
+## Part A
+
+```{r, include=FALSE, echo=FALSE, message=FALSE}
+
+library(readr)
+library(tidyverse)
+library(stats)
+
+turnout <- read_csv("turnout.csv")
+
+prop_gotv <- mean(turnout$voted1998[turnout$GOTV_call == 1])
+prop_nogotv <- mean(turnout$voted1998[turnout$GOTV_call == 0])
+
+n1 <- sum(turnout$GOTV_call == 1)
+n0 <- sum(turnout$GOTV_call == 0)
+x1 <- sum(turnout$voted1998[turnout$GOTV_call == 1])
+x0 <- sum(turnout$voted1998[turnout$GOTV_call == 0])
+
+p_diff <- prop_gotv - prop_nogotv
+se_diff <- sqrt((prop_gotv * (1 - prop_gotv)) / n1 + (prop_nogotv * (1 - prop_nogotv)) / n0)
+ci_low <- p_diff - 1.96 * se_diff
+ci_high <- p_diff + 1.96 * se_diff
+
+cat("Proportion GOTV =", prop_gotv, "\n")
+cat("Proportion No GOTV =", prop_nogotv, "\n")
+cat("95% Confidence Interval for difference =", c(ci_low, ci_high), "\n")
+
+```
+
+Proportion GOTV = 0.648
+
+Proportion No GOTV = 0.444
+
+95% Confidence Interval for difference = [0.143, 0.264]
+
+## Part B
+
+```{r, include=FALSE, echo=FALSE}
+means <- turnout |>
+  group_by(GOTV_call) |>
+  summarise(across(c(voted1996, AGE, MAJORPTY), mean))
+
+confounder_ci <- function(var) {
+  t.test(turnout[[var]] ~ turnout$GOTV_call)$conf.int
+}
+
+ci_voted1996 <- confounder_ci("voted1996")
+ci_age <- confounder_ci("AGE")
+ci_majorpty <- confounder_ci("MAJORPTY")
+
+print(means)
+cat("Confidence Interval for voted1996 difference:", ci_voted1996, "\n")
+cat("Confidence Interval for AGE difference:", ci_age, "\n")
+cat("Confidence Interval for MAJORPTY difference:", ci_majorpty, "\n")
+
+```
+
+Confidence Interval for voted1996 difference: [-0.240, -0.124]
+
+Confidence Interval for AGE difference: [-11.395, -6.370]
+
+Confidence Interval for MAJORPTY difference: [-0.108, -0.006]
+
+## Part C
+
+```{r, include=FALSE, echo=FALSE}
+
+library(MatchIt)
+
+match_out <- matchit(GOTV_call ~ voted1996 + AGE + MAJORPTY, 
+                     data = turnout, method = "nearest", ratio = 5)
+
+matched_data <- match.data(match_out)
+
+# Check balance
+matched_means <- matched_data |>
+  group_by(GOTV_call) |>
+  summarise(across(c(voted1996, AGE, MAJORPTY), mean))
+
+ci_matched_voted1996 <- t.test(matched_data$voted1996 ~ matched_data$GOTV_call)$conf.int
+ci_matched_age <- t.test(matched_data$AGE ~ matched_data$GOTV_call)$conf.int
+ci_matched_majorpty <- t.test(matched_data$MAJORPTY ~ matched_data$GOTV_call)$conf.int
+
+print(matched_means)
+cat("Confidence Interval for matched voted1996 difference:", ci_matched_voted1996, "\n")
+cat("Confidence Interval for matched AGE difference:", ci_matched_age, "\n")
+cat("Confidence Interval for matched MAJORPTY difference:", ci_matched_majorpty, "\n")
+
+prop_matched_gotv <- mean(matched_data$voted1998[matched_data$GOTV_call == 1])
+prop_matched_nogotv <- mean(matched_data$voted1998[matched_data$GOTV_call == 0])
+n1m <- sum(matched_data$GOTV_call == 1)
+n0m <- sum(matched_data$GOTV_call == 0)
+
+se_diff_m <- sqrt((prop_matched_gotv * (1 - prop_matched_gotv)) / n1m +
+                  (prop_matched_nogotv * (1 - prop_matched_nogotv)) / n0m)
+ci_matched_low <- (prop_matched_gotv - prop_matched_nogotv) - 1.96 * se_diff_m
+ci_matched_high <- (prop_matched_gotv - prop_matched_nogotv) + 1.96 * se_diff_m
+
+cat("Matched Proportion GOTV =", prop_matched_gotv, "\n")
+cat("Matched Proportion No GOTV =", prop_matched_nogotv, "\n")
+cat("Matched 95% Confidence Interval for difference =", c(ci_matched_low, ci_matched_high), "\n")
+
+```
+
+Confidence Interval for matched voted1996 difference: [-0.062, 0.062]
+
+Confidence Interval for matched AGE difference: [-2.760, 2.678]
+
+Confidence Interval for matched MAJORPTY difference: [-0.049, 0.060]
+
+Matched Proportion GOTV = 0.648
+
+Matched Proportion No GOTV = 0.569
+
+Matched 95% Confidence Interval for difference = [0.013, 0.144]
+
+## Conclusion
+
+After adjusting for confounding factors using matching, we find that receiving a "Get Out the Vote" (GOTV) call increased the likelihood of voting in the 1998 Congressional election by approximately 8.7 percentage points, with a 95% confidence interval ranging from 4.9 to 12.6 points. This estimated effect is notably smaller than the naive difference observed before matching, which was between 14.3 and 26.4 points. The reduction confirms that variables like past voting behavior, age, and party affiliation were confounding the initial relationship. Overall, the analysis provides credible evidence that GOTV calls do have a positive causal impact on voter turnout, though the effect is more modest once differences in baseline voting propensity are taken into account.
