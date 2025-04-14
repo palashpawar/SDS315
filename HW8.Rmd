@@ -1,0 +1,183 @@
+---
+title: "SDS315 HW8 - Palash Pawar ppp625"
+author: https://github.com/palashpawar/SDS315
+output: pdf_document
+date: "2025-04-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1
+
+```{r, include=FALSE, echo=FALSE, message=FALSE}
+library(readr)
+
+creatinine <- read.csv("creatinine.csv")
+
+model <- lm(creatclear ~ age, data = creatinine)
+
+predict(model, newdata = data.frame(age = 55))
+
+summary(model)
+
+pred_40 <- predict(model, newdata = data.frame(age = 40))
+pred_60 <- predict(model, newdata = data.frame(age = 60))
+
+actual_40 <- 135
+actual_60 <- 112
+
+diff_40 <- actual_40 - pred_40
+diff_60 <- actual_60 - pred_60
+
+diff_40
+diff_60
+
+
+```
+
+## A) Expected creatinine clearance rate for a 55-year-old
+
+I used the linear regression equation: creatclear = 147.81 - 0.62 x age
+
+**For a 55-year-old**: creatclear = 147.81 - 0.62 x 55 = 113.71 mL/min
+
+This was calculated using the regression formula from the model.
+
+## B) How does creatinine clearance rate change with age?
+
+The slope of the regression line is: -0.62 mL/min per per. This means that for every additional year of age, the expected creatinine clearance rate decreases by approximately 0.62 mL/min.
+
+## C) Who is healthier for their age?
+
+I computed each person's expected rate and compared it to their actual rate:
+
+**40-year-old:**
+
+Expected = 147.81 - 0.62 x 40 = 123.01
+
+Difference = 135 - 123.01 = +11.97
+
+**60-year-old:**
+
+Expected = 147.81 - 0.62 x 60 = 110.61
+
+Difference = 112 - 110.61 = +1.39
+
+Conclusion: The 40-year-old with a rate of 135 is healthier for their age, as their creatinine clearance rate is nearly 12 mL/min above the expected, compared to only 1.4 mL/min above the expected for the 60-year-old.
+
+# Problem 2
+
+```{r, output=FALSE, echo=FALSE, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(boot)
+
+covid <- read_csv("covid.csv")
+
+italy <- filter(covid, country == "Italy" & deaths > 0)
+spain <- filter(covid, country == "Spain" & deaths > 0)
+
+italy_model <- lm(log(deaths) ~ days_since_first_death, data = italy)
+spain_model <- lm(log(deaths) ~ days_since_first_death, data = spain)
+
+italy_growth <- coef(italy_model)[2]
+spain_growth <- coef(spain_model)[2]
+
+italy_doubling <- log(2) / italy_growth
+spain_doubling <- log(2) / spain_growth
+
+
+```
+
+```{r, echo=FALSE}
+growth_stats <- function(data, indices) {
+  d <- data[indices, ]
+  model <- lm(log(deaths) ~ days_since_first_death, data = d)
+  growth <- coef(model)[2]
+  doubling <- log(2) / growth
+  return(c(growth, doubling))
+}
+
+set.seed(123)
+italy_boot <- boot(data = italy, statistic = growth_stats, R = 1000)
+italy_ci <- boot.ci(italy_boot, type = "perc", index = 1) # for growth
+italy_dt_ci <- boot.ci(italy_boot, type = "perc", index = 2) # for doubling
+
+set.seed(123)
+spain_boot <- boot(data = spain, statistic = growth_stats, R = 1000)
+spain_ci <- boot.ci(spain_boot, type = "perc", index = 1) # for growth
+spain_dt_ci <- boot.ci(spain_boot, type = "perc", index = 2) # for doubling
+
+# Print Italy results
+cat("Italy Growth Rate:", round(italy_growth, 3), 
+    "with 95% CI [", round(italy_ci$percent[4], 3), ",", round(italy_ci$percent[5], 3), "]\n")
+cat("Italy Doubling Time:", round(italy_doubling, 1), 
+    "days with 95% CI [", round(italy_dt_ci$percent[4], 1), ",", round(italy_dt_ci$percent[5], 1), "]\n\n")
+
+# Print Spain results
+cat("Spain Growth Rate:", round(spain_growth, 3), 
+    "with 95% CI [", round(spain_ci$percent[4], 3), ",", round(spain_ci$percent[5], 3), "]\n")
+cat("Spain Doubling Time:", round(spain_doubling, 1), 
+    "days with 95% CI [", round(spain_dt_ci$percent[4], 1), ",", round(spain_dt_ci$percent[5], 1), "]\n")
+
+```
+
+```{r, echo=FALSE, message=FALSE}
+# Combine both countries
+covid_filtered <- filter(covid, deaths > 0)
+
+ggplot(covid_filtered, aes(x = days_since_first_death, y = deaths, color = country)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "COVID-19 Daily Reported Deaths: Italy vs. Spain",
+    x = "Days Since First Death",
+    y = "Reported Daily Deaths"
+  ) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+```
+
+# Problem 3
+
+```{r, echo=FALSE, message=FALSE}
+library(dplyr)
+library(readr)
+
+milk <- read_csv("milk.csv")
+
+milk <- milk |>
+  mutate(log_sales = log(sales),
+         log_price = log(price))
+
+model <- lm(log_sales ~ log_price, data = milk)
+summary(model)
+
+beta_hat <- coef(model)["log_price"]
+
+set.seed(42)
+n_iterations <- 1000
+boot_coefs <- numeric(n_iterations)
+
+for (i in 1:n_iterations) {
+  sample_data <- milk[sample(nrow(milk), replace = TRUE), ]
+  boot_model <- lm(log_sales ~ log_price, data = sample_data)
+  boot_coefs[i] <- coef(boot_model)["log_price"]
+}
+
+ci <- quantile(boot_coefs, c(0.025, 0.975))
+ci_lower <- ci[1]
+ci_upper <- ci[2]
+
+cat("Elasticity Estimate:", beta_hat, "\n")
+cat("95% Bootstrapped CI: [", ci_lower, ",", ci_upper, "]\n")
+
+
+
+```
+
+### Conclusion:
+
+To estimate the price elasticity of demand for milk, I log-transformed both price and sales to linearize the power-law model, then fit a linear regression of log(sales) on log(price). The slope of this regression gives the elasticity estimate of -1.62. I used bootstrapping with 1,000 resamples to compute a 95% confidence interval which was [-1.78, -1.46].
