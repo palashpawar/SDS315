@@ -1,0 +1,219 @@
+---
+title: "SDS315 HW9 - Palash Pawar ppp625"
+author: https://github.com/palashpawar/SDS315
+output: pdf_document
+date: "2025-04-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1: Manufacturing flaws in circuit boards
+
+## Part A: 
+
+```{r, echo=FALSE, message=FALSE}
+library(ggplot2)
+library(readr)
+
+solder <- read_csv("solder.csv")
+
+ggplot(solder, aes(x = Opening, y = skips)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(
+    title = "Effect of Solder Gun Opening Size on Number of Skips",
+    x = "Opening Size",
+    y = "Number of Solder Skips"
+  )
+
+ggplot(solder, aes(x = Solder, y = skips)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(
+    title = "Effect of Solder Thickness on Number of Skips",
+    x = "Solder Thickness",
+    y = "Number of Solder Skips"
+  )
+```
+
+## Part B: 
+
+```{r, echo=FALSE}
+library(moderndive)
+
+model <- lm(skips ~ Opening * Solder, data = solder)
+
+summary(model)
+confint(model)
+
+get_regression_table(model, conf.level = 0.95, digits=2)
+
+
+```
+
+## Part C: 
+
+**Intercept**: This is the expected number of skips when the Opening is "L" (large) and the Solder is "Thick". The baseline category combination.
+
+**Opening[T.M]**: When switching from a large to a medium opening (with thick solder), the number of skips increases by about 2.41 on average.
+
+**Opening[T.S]**: When switching from a large to a small opening (with thick solder), the number of skips increases significantly by about 5.13 on average.
+
+**Solder[T.Thin]**: When using thin solder instead of thick (with a large opening), the number of skips increases by about 2.28 on average.
+
+**Opening[T.M]:Solder**: This interaction term captures how the effect of using thin solder changes when the opening is medium instead of large. It reduces the expected skips by about 0.74, but the confidence interval includes zero, suggesting the interaction may not be statistically significant.
+
+## Part D: 
+
+Based on the regression results, the combination that consistently yields the fewest solder skips is:
+
+**Opening: Large**
+
+**Solder: Thick**
+
+This is the baseline category in the regression (represented by the intercept), and all other combinations show higher expected skip counts. Small openings and thin solder, in particular, significantly increase the number of defects. Therefore, to minimize solder skips and improve manufacturing quality, AT&T should use thick solder with a large opening.
+
+# Problem 2: Grocery store prices 
+
+## Part A: 
+
+```{r, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(readr)
+
+groceries <- read_csv("groceries.csv")
+
+groceries |>
+  group_by(Store) |>
+  summarize(avg_price = mean(Price, na.rm = TRUE)) |>
+  ggplot(aes(x = reorder(Store, avg_price), y = avg_price)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Average Product Price by Store",
+       x = "Store", y = "Average Price ($)")
+
+
+```
+
+This bar graph shows the average price of products sold at each store in the dataset. Stores like Wal-Mart, Kroger, and Fiesta tend to have the lowest average prices, while Whole Foods, Natural Grocers, and Albertsons have the highest, supporting their reputations for premium pricing.
+
+## Part B: 
+
+```{r, echo=FALSE}
+groceries |>
+  group_by(Product) |>
+  summarize(store_count = n_distinct(Store)) |>
+  ggplot(aes(x = reorder(Product, store_count), y = store_count)) +
+  geom_bar(stat = "identity", fill = "coral") +
+  coord_flip() +
+  labs(title = "Number of Stores Carrying Each Product",
+       x = "Product", y = "Number of Stores")
+
+```
+
+This bar graph displays the number of stores that carry each product. Staples like eggs, milk, and salt are the most widely available, appearing in all 16 stores. In contrast, specialty items like Cinnamon Toast Crunch, Frosted Flakes, and Lucky Charms are carried by far fewer locations, highlighting disparities in product availability.
+
+## Part C: 
+
+```{r, echo=FALSE}
+model_c <- lm(Price ~ Product + Type, data = groceries)
+summary(model_c)
+
+confint(model_c)["TypeGrocery", ]
+
+```
+
+Compared with ordinary grocery stores (like Albertsons, HEB, or Kroger), convenience stores charge between \$0.41 and \$0.92 more for the same product, on average. The point estimate of this markup is \$0.66, indicating a statistically significant and economically meaningful premium.
+
+## Part D: 
+
+```{r, echo=FALSE}
+model_d <- lm(Price ~ Product + Store, data = groceries)
+summary(model_d)
+
+store_effects <- coef(model_d)[grep("Store", names(coef(model_d)))]
+sort(store_effects)
+
+```
+
+When comparing prices for the same products:
+
+The two **lowest-priced stores** are:
+
+**Walmart** (charges \$0.99 less than the baseline store)
+
+**Kroger Fresh Fare** (charges \$0.90 less)
+
+The two **highest-priced stores** are:
+
+**Whole Foods** (charges \$0.36 more)
+
+**Wheatsville Food Co-Op** (charges \$0.29 more)
+
+This confirms that Walmart and Kroger Fresh Fare are the most budget-friendly, while Whole Foods and Wheatsville are relatively more expensive even for identical products.
+
+## Part E: 
+
+```{r, echo=FALSE}
+coef_central <- coef(model_d)["StoreCentral Market"]
+coef_heb <- 0  # reference level
+
+difference <- coef_central - coef_heb
+print(difference)
+
+```
+
+The model treats H-E-B as the reference store (its coefficient is 0), and Central Market has a coefficient of -0.57. That means Central Market charges \$0.57 less than H-E-B for the same product, on average.
+
+So contrary to the popular belief that Central Market is more expensive:
+
+Central Market actually charges *less* than H-E-B for the same items in this dataset.
+
+The difference between Central Market and H-E-B (\$0.57) is larger than the price gap between Whole Foods and the average store (\$0.36 more). Thus, this finding challenges the reputation of Central Market as a high-priced store, it may offer higher-end products overall, but for overlapping items, it’s not more expensive.
+
+## Part F: 
+
+```{r, echo=FALSE}
+groceries <- groceries |>
+  mutate(Income10K = Income / 10000)
+
+model_f <- lm(Price ~ Product + Income10K, data = groceries)
+summary(model_f)
+
+income_sd <- sd(groceries$Income10K)
+price_sd <- sd(groceries$Price)
+std_effect <- coef(model_f)["Income10K"] * income_sd / price_sd
+print(std_effect)
+
+```
+
+The coefficient on Income10K is -0.0141, meaning that for every \$10,000 increase in ZIP code income, the expected price of the same product decreases by about 1.41 cents.
+
+Since the coefficient is negative, this implies that consumers in poorer ZIP codes tend to pay *more* for the same product, on average.
+
+A one-standard deviation increase in the income of a ZIP code seems to be associated with a 0.03 standard-deviation decrease in the price that consumers in that ZIP code expect to pay for the same product.
+
+# Problem 3: Redlining
+
+**A. ZIP codes with a higher percentage of minority residents tend to have more FAIR policies per 100 housing units.**
+
+True, positive correlation between percentage of minority residents and FAIR policies.
+
+**B. The evidence suggests an interaction effect between minority percentage and the age of the housing stock in the way that these two variables are related to the number of FAIR policies in a ZIP code.**
+
+False, no model includes an interaction term between minority and age.
+
+**C. The relationship between minority percentage and number of FAIR policies per 100 housing units is
+stronger in high-fire-risk ZIP codes than in low-fire-risk ZIP codes.**
+
+True, Figure C1 shows that the slope for the high fire risk group is steeper than for the low fire risk group.
+
+**D. Even without controlling for any other variables, income “explains away” all the association between
+minority percentage and FAIR policy uptake.**
+
+False, In model D2 (minority + income), the minority variable remains statistically significant (p = 0.002), with only a slight reduction in the coefficient (from 0.014 to 0.01).
+
+**E. Minority percentage and number of FAIR policies are still associated at the ZIP code level, even after
+controlling for income, fire risk, and housing age.**
+
+True, In model E, which includes all controls (income, fire, age), the minority variable remains statistically significant (p = 0.006) with a positive coefficient (0.008).
